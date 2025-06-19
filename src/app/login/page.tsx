@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { motion } from "motion/react"
-import { Eye, EyeOff, Mail, Lock, ArrowRight, UserCircle2Icon } from "lucide-react"
+import { Eye, EyeOff, Lock, ArrowRight, UserCircle2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,8 +26,6 @@ export default function LoginPage() {
 
     // 模拟登录请求
     try {
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
       if (formData.username === "admin" && formData.password === "123456") {
         toast.success("欢迎回到 BinLee Notion!")
         router.push("/dashboard")

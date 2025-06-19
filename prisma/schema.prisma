@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id       String     @id @default(cuid())
+  email    String     @unique
+  username String     @unique
+  password String
+  avatar   String?
+  status   UserStatus @default(ACTIVE)
+
+  // 时间戳
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLogin DateTime?
+
+  // RBAC 关联
+  userRoles UserRole[]
+
+  // 业务关联
+  posts    Post[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+// 角色模型
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  displayName String
+  description String?
+  status      RoleStatus @default(ACTIVE)
+  level       Int        @default(0) // 角色级别，用于权限继承
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+// 权限模型
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  displayName String
+  description String?
+  resource    String // 资源标识 例如：user, post, order
+  action      String // 操作标识 例如：create, read, update, delete
+  conditions  Json? // 权限条件 JSON 格式
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+// 用户角色关联表
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  // 角色分配元信息
+  assignedBy String? // 分配者ID
+  assignedAt DateTime       @default(now())
+  expiresAt  DateTime? // 角色过期时间
+  status     UserRoleStatus @default(ACTIVE)
+
+  // 关联
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// 角色权限关联表
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  // 权限约束
+  conditions Json? // 特定条件约束
+  granted    Boolean @default(true) // true=授予，false=拒绝
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// 会话模型
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// 业务模型示例 - 文章
+model Post {
+  id       String     @id @default(cuid())
+  title    String
+  content  String
+  status   PostStatus @default(DRAFT)
+  authorId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@map("posts")
+}
+
+// 操作日志模型
+model AuditLog {
+  id         String  @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+// 枚举类型
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum RoleStatus {
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+}
+
+enum UserRoleStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}

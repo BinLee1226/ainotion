@@ -8,9 +8,13 @@ import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../ui/button";
+import { NavUser } from "./nav-user";
+import { navigationData } from "@/lib/navigation";
+
 export default function NavHeader() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+
   // 避免水合不匹配
   useEffect(() => {
     setMounted(true)
@@ -19,8 +23,9 @@ export default function NavHeader() {
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
+
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    <header className="sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
       <div className="flex items-center gap-2 px-4 flex-1">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -41,7 +46,6 @@ export default function NavHeader() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-
       {/* 主题切换按钮 */}
       <div className="flex items-center gap-2 px-4">
         {mounted ? (
@@ -100,6 +104,9 @@ export default function NavHeader() {
             <span className="sr-only">切换主题</span>
           </Button>
         )}
+      </div>
+      <div className="flex items-center gap-2 pr-4 ">
+        <NavUser user={navigationData.user} />
       </div>
     </header>
   )
