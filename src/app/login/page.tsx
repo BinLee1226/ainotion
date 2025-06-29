@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import OtherSignIn from "@/components/other-signIn";
-import { loginWithGithub } from "@/auth/login/action";
+import { githubSignIn } from "@/lib/actions/auth";
 
 // 动画变体
 const containerVariants: Variants = {
@@ -99,14 +99,12 @@ interface LoginType extends FormDataType {
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("username");
+  const [activeTab, setActiveTab] = useState("email");
   const [showPasswords, setShowPasswords] = useState({
     password: false,
     emailPassword: false,
   });
   const [formData, setFormData] = useState<FormDataType>({
-    username: "",
-    password: "",
     phone: "",
     smsCode: "",
     email: "",
@@ -130,16 +128,18 @@ export default function LoginPage() {
     let validationError = "";
 
     switch (activeTab) {
-      case "username":
-        if (!formData.username?.trim()) {
-          validationError = "请输入用户名";
-        } else if (!formData.password?.trim()) {
+      case "email":
+        if (!formData.email?.trim()) {
+          validationError = "请输入邮箱地址";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          validationError = "请输入正确的邮箱格式";
+        } else if (!formData.emailPassword?.trim()) {
           validationError = "请输入密码";
         } else {
           loginData = {
-            type: "username",
-            username: formData.username.trim(),
-            password: formData.password.trim(),
+            type: "email",
+            email: formData.email.trim(),
+            password: formData.emailPassword,
             rememberMe: formData.rememberMe,
           };
         }
@@ -161,23 +161,6 @@ export default function LoginPage() {
           };
         }
         break;
-
-      case "email":
-        if (!formData.email?.trim()) {
-          validationError = "请输入邮箱地址";
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-          validationError = "请输入正确的邮箱格式";
-        } else if (!formData.emailPassword?.trim()) {
-          validationError = "请输入密码";
-        } else {
-          loginData = {
-            type: "email",
-            email: formData.email.trim(),
-            password: formData.emailPassword,
-            rememberMe: formData.rememberMe,
-          };
-        }
-        break;
     }
 
     if (validationError) {
@@ -192,22 +175,17 @@ export default function LoginPage() {
         message?: string;
       }>((resolve) => {
         setTimeout(() => {
-          if (activeTab === "username") {
-            const success =
-              loginData.username === "admin" && loginData.password === "123456";
-            resolve({
-              success: success !== undefined, // 直接比较是否不等于undefined
-              message: success ? "登录成功" : "用户名或密码错误",
-            });
-          } else if (activeTab === "phone") {
+          if (activeTab === "phone") {
             const success = loginData.smsCode === "123456";
             resolve({
               success,
               message: success ? "登录成功" : "验证码错误",
             });
-          } else if (activeTab === "email") {
+          } else {
             // const success = loginData.email && loginData.password;
-            const success = loginData.email === "test@example.com";
+            const success =
+              loginData.email === "admin@qq.com" &&
+              loginData.password === "123456";
             resolve({
               success,
               message: success ? "登录成功" : "邮箱或密码错误",
@@ -506,13 +484,13 @@ export default function LoginPage() {
                       className="w-full"
                     >
                       {/* 简约的Tab切换 */}
-                      <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+                      <TabsList className="grid w-full grid-cols-2 bg-gray-100">
                         <TabsTrigger
-                          value="username"
+                          value="email"
                           className="text-gray-600 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
                         >
-                          <User className="mr-2 h-4 w-4" />
-                          账号
+                          <Mail className="mr-2 h-4 w-4" />
+                          邮箱
                         </TabsTrigger>
                         <TabsTrigger
                           value="phone"
@@ -521,140 +499,10 @@ export default function LoginPage() {
                           <Phone className="mr-2 h-4 w-4" />
                           手机
                         </TabsTrigger>
-                        <TabsTrigger
-                          value="email"
-                          className="text-gray-600 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
-                        >
-                          <Mail className="mr-2 h-4 w-4" />
-                          邮箱
-                        </TabsTrigger>
                       </TabsList>
 
                       <div className="mt-6">
                         <AnimatePresence mode="wait">
-                          {/* 用户名登录 */}
-                          {activeTab === "username" && (
-                            <TabsContent value="username">
-                              <motion.div
-                                key="username-form"
-                                variants={tabContentVariants}
-                                initial="hidden"
-                                animate="visible"
-                                exit="exit"
-                                className="space-y-4"
-                              >
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">
-                                    用户名
-                                  </Label>
-                                  <Input
-                                    type="text"
-                                    value={formData.username || ""}
-                                    onChange={(e) =>
-                                      handleInputChange(
-                                        "username",
-                                        e.target.value,
-                                      )
-                                    }
-                                    placeholder="请输入用户名"
-                                    className="h-11 border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">
-                                    密码
-                                  </Label>
-                                  <div className="relative">
-                                    <Input
-                                      type={
-                                        showPasswords.password
-                                          ? "text"
-                                          : "password"
-                                      }
-                                      value={formData.password || ""}
-                                      onChange={(e) =>
-                                        handleInputChange(
-                                          "password",
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="请输入密码"
-                                      className="h-11 border-gray-200 bg-gray-50 pr-10 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        togglePasswordVisibility("password")
-                                      }
-                                      className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    >
-                                      {showPasswords.password ? (
-                                        <EyeOff className="h-4 w-4" />
-                                      ) : (
-                                        <Eye className="h-4 w-4" />
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            </TabsContent>
-                          )}
-
-                          {/* 手机号登录 */}
-                          {activeTab === "phone" && (
-                            <TabsContent value="phone">
-                              <motion.div
-                                key="phone-form"
-                                variants={tabContentVariants}
-                                initial="hidden"
-                                animate="visible"
-                                exit="exit"
-                                className="space-y-4"
-                              >
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">
-                                    手机号码
-                                  </Label>
-                                  <Input
-                                    type="tel"
-                                    value={formData.phone || ""}
-                                    onChange={(e) =>
-                                      handleInputChange("phone", e.target.value)
-                                    }
-                                    placeholder="请输入手机号"
-                                    className="h-11 border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700">
-                                    验证码
-                                  </Label>
-                                  <div className="flex gap-3">
-                                    <Input
-                                      type="text"
-                                      value={formData.smsCode || ""}
-                                      onChange={(e) =>
-                                        handleInputChange(
-                                          "smsCode",
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="6位验证码"
-                                      className="h-11 border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      className="h-11 border-gray-200 px-4 hover:border-blue-500 hover:text-blue-600"
-                                    >
-                                      获取验证码
-                                    </Button>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            </TabsContent>
-                          )}
-
                           {/* 邮箱登录 */}
                           {activeTab === "email" && (
                             <TabsContent value="email">
@@ -716,6 +564,60 @@ export default function LoginPage() {
                                         <Eye className="h-4 w-4" />
                                       )}
                                     </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            </TabsContent>
+                          )}
+                          {/* 手机号登录 */}
+                          {activeTab === "phone" && (
+                            <TabsContent value="phone">
+                              <motion.div
+                                key="phone-form"
+                                variants={tabContentVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                className="space-y-4"
+                              >
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium text-gray-700">
+                                    手机号码
+                                  </Label>
+                                  <Input
+                                    type="tel"
+                                    value={formData.phone || ""}
+                                    onChange={(e) =>
+                                      handleInputChange("phone", e.target.value)
+                                    }
+                                    placeholder="请输入手机号"
+                                    className="h-11 border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium text-gray-700">
+                                    验证码
+                                  </Label>
+                                  <div className="flex gap-3">
+                                    <Input
+                                      type="text"
+                                      value={formData.smsCode || ""}
+                                      onChange={(e) =>
+                                        handleInputChange(
+                                          "smsCode",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="6位验证码"
+                                      className="h-11 border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="h-11 border-gray-200 px-4 hover:border-blue-500 hover:text-blue-600"
+                                    >
+                                      获取验证码
+                                    </Button>
                                   </div>
                                 </div>
                               </motion.div>
@@ -797,18 +699,17 @@ export default function LoginPage() {
                       {/* GitHub登录 */}
                       <motion.div variants={itemVariants}>
                         <Button
-                          variant="outline"
+                          onClick={() => githubSignIn()}
                           className="w-full"
-                          onClick={() => loginWithGithub()}
+                          variant="outline"
                         >
                           <svg
-                            xmlns="http://www.w3.org/2000/svg"
+                            role="img"
                             viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
                           >
-                            <path
-                              d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
-                              fill="currentColor"
-                            />
+                            <title>GitHub</title>
+                            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
                           </svg>
                           GitHub
                         </Button>
